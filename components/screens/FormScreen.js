@@ -173,11 +173,7 @@ const styles = StyleSheet.create({
 buttonText: {
   color: '#fff',
   fontWeight: 'bold',
-  fontSize: 18,
-  letterSpacing: 1,
-  textTransform: 'uppercase',
-  textShadowColor: 'rgba(0, 0, 0, 0.25)',
-  textShadowOffset: { width: 0, height: 2 },
-  textShadowRadius: 2,
+  fontSize: 17,
+  
 }
 });
