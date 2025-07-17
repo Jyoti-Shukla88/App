@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   picker: {
-    height: 50,
+    height: 52,
     width: '100%',
   },
   topicRow: {
