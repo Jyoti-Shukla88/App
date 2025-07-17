@@ -11,12 +11,12 @@ import Toast from 'react-native-toast-message';
 
 export default function DetailScreen({ route, navigation }) {
   const { entry } = route.params;
-
+  // Handle delete navigation
   const handleDelete = async () => {
     try{
     const data = await AsyncStorage.getItem('formEntries');
     let entries = data ? JSON.parse(data) : [];
-    entries = entries.filter((e) => e.id !== entry.id);
+    entries = entries.filter((e) => e.id !== entry.id);// Remove the entry with matching id
     await AsyncStorage.setItem('formEntries', JSON.stringify(entries));
 
     Toast.show({
@@ -71,7 +71,7 @@ export default function DetailScreen({ route, navigation }) {
     </ScrollView>
   );
 }
-
+// Reusable component to display a label and its corresponding value
 const Detail = ({ label, value }) => (
   <View style={styles.detailItem}>
     <Text style={styles.label}>{label}</Text>
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   },
   deleteBtn: {
     flex: 1,
-    backgroundColor: '#257de1ff', // Red color for delete
+    backgroundColor: '#257de1ff', 
     marginLeft: 10,
     alignItems: 'center',
     padding: 15,
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   },
   editBtn: {
     flex: 1,
-    backgroundColor: '#257ae9ff', // Green color for edit
+    backgroundColor: '#257ae9ff', 
     marginRight: 10,
     alignItems: 'center',
     padding: 15,

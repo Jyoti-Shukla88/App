@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View,
   FlatList,
   Text,
   TouchableOpacity,
@@ -8,17 +7,16 @@ import {
   SafeAreaView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 
 export default function ListScreen({ navigation }) {
   const [entries, setEntries] = useState([]);
-
+  // Fetch entries
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', fetchEntries);
     fetchEntries();
     return unsubscribe;
   }, [navigation]);
-
+  // Load entries from AsyncStorage
   const fetchEntries = async () => {
     try {
       const data = await AsyncStorage.getItem('formEntries');
@@ -28,7 +26,7 @@ export default function ListScreen({ navigation }) {
       console.log('Error loading form entries:', error);
     }
   };
-
+  // Render each entry card in the list
   const renderItem = ({ item }) => (
     <TouchableOpacity
       style={styles.card}
@@ -53,18 +51,8 @@ export default function ListScreen({ navigation }) {
           data={entries}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingTop: 10, paddingBottom: 60 }}
         />
       )}
-
-      {/* Floating Add Button 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate('Form')}
-      >
-        <Text style={styles.fabText}>Add</Text>
-        {/*<Ionicons name="add" size={28} color="#fff" />
-      </TouchableOpacity>*/}
     </SafeAreaView>
   );
 }
@@ -109,27 +97,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#999',
   },
-  fab: {
-    backgroundColor: '#007AFF',
-    position: 'absolute',
-    bottom: 25,
-    right: 80,
-    left: 130,
-    height: 60,
-    width: 150,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#007AFF',
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 6,
-    
-  },
-  fabText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-}
 });
