@@ -1,58 +1,64 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   FlatList,
   Text,
-  TouchableOpacity,
   StyleSheet,
+  TouchableOpacity,
   SafeAreaView,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import {
+  getFirestore,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+} from '@react-native-firebase/firestore';
 
 export default function ListScreen({ navigation }) {
   const [entries, setEntries] = useState([]);
-  // Fetch entries
+
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', fetchEntries);
-    fetchEntries();
+    const db = getFirestore();
+    const collectionRef = collection(db, 'formEntries');
+    const q = query(collectionRef, orderBy('timestamp', 'desc'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetched = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setEntries(fetched);
+    });
+
     return unsubscribe;
-  }, [navigation]);
-  // Load entries from AsyncStorage
-  const fetchEntries = async () => {
-    try {
-      const data = await AsyncStorage.getItem('formEntries');
-      const storedEntries = data ? JSON.parse(data) : [];
-      setEntries(storedEntries.reverse()); // Show most recent first
-    } catch (error) {
-      console.log('Error loading form entries:', error);
-    }
-  };
-  // Render each entry card in the list
+  }, []);
+
   const renderItem = ({ item }) => (
     <TouchableOpacity
       style={styles.card}
       onPress={() => navigation.navigate('Detail', { entry: item })}
     >
-      <Text style={styles.cardTitle}>
-        {item.firstName} {item.lastName}
-      </Text>
+      <Text style={styles.cardTitle}>{item.firstName} {item.lastName}</Text>
       <Text style={styles.cardMeta}>📍 Country: {item.country}</Text>
       <Text style={styles.cardMeta}>👤 Gender: {item.gender}</Text>
     </TouchableOpacity>
+    
   );
 
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.header}>📋 Submitted Entries</Text>
-
       {entries.length === 0 ? (
         <Text style={styles.empty}>No entries yet. Tap + to add one.</Text>
       ) : (
         <FlatList
           data={entries}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item.id}
           renderItem={renderItem}
         />
       )}
+      
     </SafeAreaView>
   );
 }
@@ -61,13 +67,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F0F2F5',
-    paddingHorizontal: 20,
-    paddingTop: 10,
+    padding: 20,
   },
   header: {
     fontSize: 22,
     fontWeight: '600',
-    marginBottom: 10,
+    marginBottom: 16,
     color: '#333',
   },
   card: {
@@ -75,10 +80,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
     elevation: 2,
   },
   cardTitle: {
@@ -97,4 +98,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#999',
   },
+  addButton: {
+  backgroundColor: '#28b5f1',
+  padding: 12,
+  borderRadius: 16,
+  alignItems: 'center',
+  marginTop: 20,
+},
+addButtonText: {
+  color: '#fff',
+  fontWeight: 'bold',
+  fontSize: 16,
+},
 });

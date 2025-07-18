@@ -7,10 +7,17 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
+import  {
+  getFirestore,
+  collection,
+  addDoc,
+  doc,
+  updateDoc,
+  serverTimestamp,
+} from '@react-native-firebase/firestore';
 
 export default function FormScreen({ navigation, route }) {
   const editEntry = route.params?.entry;
@@ -32,9 +39,10 @@ export default function FormScreen({ navigation, route }) {
     },
   });
 
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
   useEffect(() => {
     if (editEntry) {
-      // Convert topics array to object with booleans
       const topicsBoolean = { Tech: false, Health: false, Education: false };
       if (Array.isArray(editEntry.topics)) {
         editEntry.topics.forEach(t => {
@@ -56,7 +64,12 @@ export default function FormScreen({ navigation, route }) {
     }
   }, [editEntry]);
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const toggleTopic = (topic) => {
+    setForm((prev) => ({
+      ...prev,
+      topics: { ...prev.topics, [topic]: !prev.topics[topic] },
+    }));
+  };
 
   const validateForm = () => {
     const { firstName, email, phone } = form;
@@ -93,37 +106,26 @@ export default function FormScreen({ navigation, route }) {
     return true;
   };
 
-  const toggleTopic = (topic) => {
-    setForm((prev) => ({
-      ...prev,
-      topics: { ...prev.topics, [topic]: !prev.topics[topic] },
-    }));
-  };
-
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    const selectedTopics = Object.keys(form.topics).filter(
-      (topic) => form.topics[topic]
-    );
+    const selectedTopics = Object.keys(form.topics).filter(topic => form.topics[topic]);
 
     const itemToSave = {
       ...form,
       dob: form.dob.toISOString(),
       topics: selectedTopics,
+      timestamp: serverTimestamp(),
     };
 
     try {
-      const storageData = await AsyncStorage.getItem('formEntries');
-      const entries = storageData ? JSON.parse(storageData) : [];
+      const db = getFirestore();
+      const formCollectionRef = collection(db,'formEntries');
 
-      if (editEntry) {
-        // Update existing entry
-        const updatedEntry = { ...itemToSave, id: editEntry.id };
-        const updatedEntries = entries.map((entry) =>
-          entry.id === editEntry.id ? updatedEntry : entry
-        );
-        await AsyncStorage.setItem('formEntries', JSON.stringify(updatedEntries));
+      if (editEntry && editEntry.id) {
+
+        const docRef = doc(db, 'formEntries', editEntry.id);
+        await updateDoc(docRef, itemToSave);
 
         Toast.show({
           type: 'success',
@@ -131,14 +133,21 @@ export default function FormScreen({ navigation, route }) {
           text2: 'Your changes have been saved.',
         });
 
-        // Navigate back to DetailScreen with updated entry data
-        navigation.navigate('Detail', { entry: updatedEntry });
+        // Navigate back with updated entry
+        navigation.reset({
+        index: 1,
+        routes: [
+          { name: 'List' }, // Clear stack to List
+          {
+            name: 'Detail', // Push Detail with updated data
+            params: { updatedEntry: { ...itemToSave, id: editEntry.id } },
+          },
+        ],
+      });
       } else {
-        // Add new entry
-        const newEntry = { ...itemToSave, id: Date.now().toString() };
-        entries.push(newEntry);
-        await AsyncStorage.setItem('formEntries', JSON.stringify(entries));
 
+        await addDoc(formCollectionRef, itemToSave);
+        
         Toast.show({
           type: 'success',
           text1: 'Form Submitted',
@@ -157,10 +166,13 @@ export default function FormScreen({ navigation, route }) {
           rating: '',
           topics: { Tech: false, Health: false, Education: false },
         });
-
-        navigation.navigate('ListStack');
+          navigation.reset({
+          index: 0,
+          routes: [{ name: 'List' }],
+        }); 
       }
     } catch (error) {
+      console.error(error);
       Toast.show({
         type: 'error',
         text1: 'Save Error',
@@ -172,7 +184,6 @@ export default function FormScreen({ navigation, route }) {
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.formCard}>
-        {/* First Name */}
         <Text style={styles.inputLabel}>First Name</Text>
         <TextInput
           style={styles.input}
@@ -181,7 +192,6 @@ export default function FormScreen({ navigation, route }) {
           onChangeText={(text) => setForm({ ...form, firstName: text })}
         />
 
-        {/* Last Name */}
         <Text style={styles.inputLabel}>Last Name</Text>
         <TextInput
           style={styles.input}
@@ -190,7 +200,6 @@ export default function FormScreen({ navigation, route }) {
           onChangeText={(text) => setForm({ ...form, lastName: text })}
         />
 
-        {/* Date of Birth */}
         <Text style={styles.inputLabel}>Date of Birth</Text>
         <TouchableOpacity
           style={styles.dateButton}
@@ -205,12 +214,12 @@ export default function FormScreen({ navigation, route }) {
             display="default"
             onChange={(event, selectedDate) => {
               setShowDatePicker(false);
-              if (selectedDate) setForm((prev) => ({ ...prev, dob: selectedDate }));
+              if (selectedDate)
+                setForm((prev) => ({ ...prev, dob: selectedDate }));
             }}
           />
         )}
 
-        {/* Gender */}
         <Text style={styles.inputLabel}>Gender</Text>
         <View style={styles.pickerContainer}>
           <Picker
@@ -225,7 +234,6 @@ export default function FormScreen({ navigation, route }) {
           </Picker>
         </View>
 
-        {/* Country */}
         <Text style={styles.inputLabel}>Country</Text>
         <View style={styles.pickerContainer}>
           <Picker
@@ -240,7 +248,6 @@ export default function FormScreen({ navigation, route }) {
           </Picker>
         </View>
 
-        {/* Email */}
         <Text style={styles.inputLabel}>Email</Text>
         <TextInput
           style={styles.input}
@@ -251,7 +258,6 @@ export default function FormScreen({ navigation, route }) {
           onChangeText={(text) => setForm({ ...form, email: text })}
         />
 
-        {/* Phone Number */}
         <Text style={styles.inputLabel}>Phone Number</Text>
         <TextInput
           style={styles.input}
@@ -260,12 +266,11 @@ export default function FormScreen({ navigation, route }) {
           maxLength={10}
           value={form.phone}
           onChangeText={(text) => {
-            const onlyNumbers = text.replace(/[^0-9]/g, '');
-            setForm({ ...form, phone: onlyNumbers });
+            const clean = text.replace(/[^0-9]/g, '');
+            setForm({ ...form, phone: clean });
           }}
         />
 
-        {/* Feedback */}
         <Text style={styles.inputLabel}>Feedback</Text>
         <TextInput
           style={[styles.input, styles.multilineInput]}
@@ -276,7 +281,6 @@ export default function FormScreen({ navigation, route }) {
           onChangeText={(text) => setForm({ ...form, feedback: text })}
         />
 
-        {/* Experience Rating */}
         <Text style={styles.inputLabel}>Experience Rating</Text>
         <View style={styles.pickerContainer}>
           <Picker
@@ -291,7 +295,6 @@ export default function FormScreen({ navigation, route }) {
           </Picker>
         </View>
 
-        {/* Interested Topics */}
         <Text style={styles.inputLabel}>Interested Topics</Text>
         {Object.keys(form.topics).map((topic) => (
           <View style={styles.topicRow} key={topic}>
@@ -310,7 +313,6 @@ export default function FormScreen({ navigation, route }) {
           </View>
         ))}
 
-        {/* Submit/Update Button */}
         <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
           <Text style={styles.submitButtonText}>
             {editEntry ? 'Update' : 'Submit'}
@@ -363,14 +365,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
     borderRadius: 8,
     padding: 14,
-    fontSize: 16,
-    color: '#333',
     borderWidth: 1,
     borderColor: '#e0e0e0',
     marginBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
   dateButtonText: {
     fontSize: 16,
@@ -390,19 +387,19 @@ const styles = StyleSheet.create({
   },
   topicRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 10,
     paddingVertical: 5,
+    alignItems: 'center',
   },
   topicText: {
     fontSize: 16,
     color: '#333',
   },
   checkboxButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 2,
     borderColor: '#007AFF',
     alignItems: 'center',
@@ -415,7 +412,7 @@ const styles = StyleSheet.create({
   },
   checkboxText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   submitButton: {
@@ -434,6 +431,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 18,
-    letterSpacing: 0.5,
   },
 });

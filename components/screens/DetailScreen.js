@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,40 +6,51 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
+import { getFirestore, doc, deleteDoc } from '@react-native-firebase/firestore';
+
 
 export default function DetailScreen({ route, navigation }) {
-  const { entry } = route.params;
-  // Handle delete navigation
+  const { entry: initialEntry, updatedEntry } = route.params;
+  const [entry, setEntry] = useState(initialEntry);
+
+  // If an updated entry is returned, update the local state
+  useEffect(() => {
+    if (updatedEntry) {
+      setEntry(updatedEntry);
+      Toast.show({
+        type: 'success',
+        text1: 'Updated',
+        text2: 'Entry has been successfully updated.',
+        position: 'top',
+      });
+    }
+  }, [updatedEntry]);
+
   const handleDelete = async () => {
-    try{
-    const data = await AsyncStorage.getItem('formEntries');
-    let entries = data ? JSON.parse(data) : [];
-    entries = entries.filter((e) => e.id !== entry.id);// Remove the entry with matching id
-    await AsyncStorage.setItem('formEntries', JSON.stringify(entries));
+    try {
+      const db = getFirestore();
+      const docRef = doc(db, 'formEntries', entry.id);
+      await deleteDoc(docRef);
 
-    Toast.show({
-      type: 'success',
-      text1: 'Entry Deleted',
-      text2: 'The form entry has been successfully removed.',
-      position: 'top',
-    
-    });
-
-    navigation.goBack();
-  } catch (error) {
-    Toast.show({
-      type: 'error',
-      text1: 'Delete Failed',
-      text2: 'Something went wrong. Please try again.',
-    });
-  }
+      Toast.show({
+        type: 'success',
+        text1: 'Entry Deleted',
+        text2: 'The form entry has been successfully removed.',
+        position: 'top',
+      });
+      navigation.goBack();
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Delete Failed',
+        text2: 'Something went wrong. Please try again.',
+      });
+    }
   };
 
-   // Handle edit navigation
   const handleEdit = () => {
-    navigation.navigate('Form', { entry });  // Pass the entry for editing
+    navigation.navigate('Form', { entry });
   };
 
   return (
@@ -58,12 +69,11 @@ export default function DetailScreen({ route, navigation }) {
         <Detail label="Feedback" value={entry.feedback} />
         <Detail label="Topics" value={entry.topics.join(', ')} />
       </View>
-       
+
       <View style={styles.buttonsContainer}>
         <TouchableOpacity style={styles.editBtn} onPress={handleEdit}>
           <Text style={styles.editBtnText}>✏️ Edit Entry</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
           <Text style={styles.deleteBtnText}>🗑 Delete Entry</Text>
         </TouchableOpacity>
@@ -71,13 +81,17 @@ export default function DetailScreen({ route, navigation }) {
     </ScrollView>
   );
 }
-// Reusable component to display a label and its corresponding value
+
+// Reusable component to display a label and value
 const Detail = ({ label, value }) => (
   <View style={styles.detailItem}>
     <Text style={styles.label}>{label}</Text>
     <Text style={styles.value}>{value}</Text>
   </View>
 );
+
+// ... your existing styles remain unchanged
+
 
 const styles = StyleSheet.create({
   container: {
