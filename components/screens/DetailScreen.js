@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,26 +7,37 @@ import {
   ScrollView,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { getFirestore, doc, deleteDoc } from '@react-native-firebase/firestore';
-
+import { getFirestore, doc,getDoc, deleteDoc } from '@react-native-firebase/firestore';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function DetailScreen({ route, navigation }) {
-  const { entry: initialEntry, updatedEntry } = route.params;
-  const [entry, setEntry] = useState(initialEntry);
+const { entry } = route.params;
+const [item, setItem] = useState(null);
 
   // If an updated entry is returned, update the local state
-  useEffect(() => {
-    if (updatedEntry) {
-      setEntry(updatedEntry);
-      Toast.show({
-        type: 'success',
-        text1: 'Updated',
-        text2: 'Entry has been successfully updated.',
-        position: 'top',
-      });
-    }
-  }, [updatedEntry]);
-
+  useFocusEffect(
+  useCallback(() => {
+    const fetchEntry = async () => {
+      if (!entry?.id) return;
+      try {
+        const db = getFirestore();
+        const docRef = doc(db, 'formEntries', entry.id);
+        const snap = await getDoc(docRef);
+        if (snap.exists) {
+          setItem({ id: snap.id, ...snap.data() });
+        }
+      } catch (error) {
+        Toast.show({
+          type: 'error',
+          text1: 'Failed to Fetch',
+          text2: 'Unable to load entry details.',
+        });
+      }
+    };
+    fetchEntry();
+  }, [entry?.id])
+);
+  
   const handleDelete = async () => {
     try {
       const db = getFirestore();
@@ -50,36 +61,41 @@ export default function DetailScreen({ route, navigation }) {
   };
 
   const handleEdit = () => {
-    navigation.navigate('Form', { entry });
+    navigation.navigate('Form', { entry: item });
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>
-        {entry.firstName} {entry.lastName}
-      </Text>
+  <ScrollView contentContainerStyle={styles.container}>
+    <Text style={styles.title}>
+      {item?.firstName} {item?.lastName}
+    </Text>
 
+    {item ? (
       <View style={styles.detailCard}>
-        <Detail label="Date of Birth" value={entry.dob} />
-        <Detail label="Gender" value={entry.gender} />
-        <Detail label="Country" value={entry.country} />
-        <Detail label="Email" value={entry.email} />
-        <Detail label="Phone" value={entry.phone} />
-        <Detail label="Rating" value={`${entry.rating} Star(s)`} />
-        <Detail label="Feedback" value={entry.feedback} />
-        <Detail label="Topics" value={entry.topics.join(', ')} />
+        <Detail label="Date of Birth" value={new Date(item.dob).toLocaleDateString()} />
+        <Detail label="Gender" value={item.gender} />
+        <Detail label="Country" value={item.country} />
+        <Detail label="Email" value={item.email} />
+        <Detail label="Phone" value={item.phone} />
+        <Detail label="Rating" value={`${item.rating} Star(s)`} />
+        <Detail label="Feedback" value={item.feedback} />
+        <Detail label="Topics" value={Array.isArray(item.topics) ? item.topics.join(', ') : ''} />
       </View>
+    ) : (
+      <Text>Loading...</Text>
+    )}
 
-      <View style={styles.buttonsContainer}>
-        <TouchableOpacity style={styles.editBtn} onPress={handleEdit}>
-          <Text style={styles.editBtnText}>✏️ Edit Entry</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-          <Text style={styles.deleteBtnText}>🗑 Delete Entry</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
-  );
+    <View style={styles.buttonsContainer}>
+      <TouchableOpacity style={styles.editBtn} onPress={handleEdit}>
+        <Text style={styles.editBtnText}>✏️ Edit Entry</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
+        <Text style={styles.deleteBtnText}>🗑 Delete Entry</Text>
+      </TouchableOpacity>
+    </View>
+  </ScrollView>
+);
+
 }
 
 // Reusable component to display a label and value

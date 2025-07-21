@@ -18,6 +18,7 @@ import  {
   updateDoc,
   serverTimestamp,
 } from '@react-native-firebase/firestore';
+import { CommonActions } from '@react-navigation/native';
 
 export default function FormScreen({ navigation, route }) {
   const editEntry = route.params?.entry;
@@ -105,7 +106,7 @@ export default function FormScreen({ navigation, route }) {
 
     return true;
   };
-
+ 
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
@@ -121,7 +122,7 @@ export default function FormScreen({ navigation, route }) {
     try {
       const db = getFirestore();
       const formCollectionRef = collection(db,'formEntries');
-
+      // Edit Mode
       if (editEntry && editEntry.id) {
 
         const docRef = doc(db, 'formEntries', editEntry.id);
@@ -134,19 +135,32 @@ export default function FormScreen({ navigation, route }) {
         });
 
         // Navigate back with updated entry
-        navigation.reset({
-        index: 1,
-        routes: [
-          { name: 'List' }, // Clear stack to List
-          {
-            name: 'Detail', // Push Detail with updated data
-            params: { updatedEntry: { ...itemToSave, id: editEntry.id } },
+        // After successful update:
+navigation.dispatch({
+  ...CommonActions.reset({
+    index: 1,
+    routes: [
+      { name: 'List' },
+      {
+        name: 'Detail',
+        params: {
+          entry: {
+            ...form,
+            dob: form.dob.toISOString(),
+            topics: selectedTopics,
+            id: editEntry.id,
           },
-        ],
-      });
+        },
+      },
+    ],
+  }),
+});
+
+  
+
       } else {
 
-        await addDoc(formCollectionRef, itemToSave);
+        const docRef = await addDoc(formCollectionRef, itemToSave);
         
         Toast.show({
           type: 'success',
@@ -166,10 +180,14 @@ export default function FormScreen({ navigation, route }) {
           rating: '',
           topics: { Tech: false, Health: false, Education: false },
         });
-          navigation.reset({
-          index: 0,
-          routes: [{ name: 'List' }],
-        }); 
+          // After addDoc
+navigation.dispatch({
+  ...CommonActions.reset({
+    index: 0,
+    routes: [{ name: 'List' }],
+  }),
+});
+
       }
     } catch (error) {
       console.error(error);
